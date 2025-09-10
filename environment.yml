@@ -1,0 +1,16 @@
+name: ml_audio
+channels:
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - matplotlib
+  - pandas
+  - librosa
+  - libflac
+  - libvorbis
+  - libogg
+  - libsndfile
+prefix: /opt/miniconda3/envs/ml_audio
