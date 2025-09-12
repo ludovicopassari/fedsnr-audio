@@ -1,6 +1,5 @@
 {
-    "num_rounds": 3,
-    "batchSize": 32,
+    "num_rounds": 30,
     "fitClients": 30,
     "fraction_fit": 1.0,
     "fraction_evaluate": 0.5,

@@ -5,11 +5,13 @@ import json
 import pandas as pd
 import numpy as np
 
-#dataset info
-dataset_dir = Path('../fed_dataset')
-dataset_metadata = dataset_dir / 'UrbanSound8K.csv'
+from config import BASE_DIR, FED_DATASET_DIR
 
-config_file = "./partition_utils/partitioner_config.json"  # Percorso del file JSON
+#dataset info
+dataset_dir = FED_DATASET_DIR
+dataset_metadata = dataset_dir / 'metadata' / 'UrbanSound8K_augmented.csv'
+
+config_file = BASE_DIR / 'fed_audio_classification' / 'partition_utils' / 'partitioner_config.json' # Percorso del file JSON
 
 config = None
 with open(config_file, "r") as f:

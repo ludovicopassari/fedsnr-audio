@@ -1,8 +1,10 @@
 {
-    "batchSize":32,
-    "epochs":5,
-    "optimizer":"Adamax",
-    "learning_rate":0.001,
-    "criterion":"CrossEntropyLoss",
-    "weight_decay" : 1e-4
+    "batch_size":16,
+    "epochs": 2,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-4,
+    "num_classes": 10,
+    "sample_rate": 22050,
+    "client_train_folds": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "server_test_folds" : [10]
 }

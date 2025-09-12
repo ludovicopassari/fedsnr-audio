@@ -5,7 +5,7 @@ def calculate_snr(spectrogram):
     # Calcola la media e la deviazione standard dell'intera immagine
     mean_signal = np.mean(spectrogram)
     std_noise = np.std(spectrogram)
-    
+
     # Evita la divisione per zero
     if std_noise == 0:
         return float('inf')  # SNR molto alto se non c'è rumore (poco realistico ma utile per evitare errori)

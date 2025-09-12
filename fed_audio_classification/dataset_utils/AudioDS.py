@@ -6,9 +6,12 @@ import torch
 import librosa
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from logger_config import get_logger
+
+logger = get_logger(__name__)
 
 class AudioDS(Dataset):
-    def __init__(self, data_path, folds, sample_rate,  partition_id, metadata_filename ,feature_ext_type= 'mel-spectrogram', max_duration=4,training=False, aug=True, num_aug=4):
+    def __init__(self, data_path, folds, sample_rate,  partition_id, metadata_filename , max_duration=4,training=False, aug=True, num_aug=1, aug_prob = 0.1):
         self._data_path = Path(data_path)
         self._folds = folds
         self.partition_id = partition_id
@@ -17,10 +20,10 @@ class AudioDS(Dataset):
         self._max_duration = max_duration
         self._train = training
         self._target_len = sample_rate * max_duration
-        self._feature_ext_type = feature_ext_type
         self._metadata = self._load_metadata()
         self._augmentation = aug
         self._max_augmentation= num_aug
+        self.augumentation_prob = aug_prob
 
         #Feature extraction utilizzando spettrogrammi Mel
         n_fft = 2048
@@ -64,14 +67,13 @@ class AudioDS(Dataset):
         waveform = raw_waveform
         
 
-        #ricammpiona il segnale audio ad un sample rate target
+        #ricampiona il segnale audio ad un sample rate target
         if raw_sample_rate != self._sample_rate:
             waveform = self._resample_waveform(waveform=raw_waveform, orig_freq=raw_sample_rate, new_freq= self._sample_rate)
 
         if self._target_len != waveform.shape[1]:
             waveform = self._fix_lenght(waveform)
-        
-
+    
         if self._train and self._augmentation and torch.rand(1).item() < 0.4:
             waveform = self._apply_balanced_augmentations(waveform=waveform)
  
@@ -83,7 +85,9 @@ class AudioDS(Dataset):
             channel_waveform = waveform[channel:channel+1]  # Mantieni la dimensione batch
             raw_spectrogram = self.mel_transform(channel_waveform)
             spec = librosa.power_to_db(raw_spectrogram.squeeze().numpy())
-            
+
+            #spec = 10.0 * torch.log10(raw_spectrogram + 1e-10)  # evita .numpy() #per utilizzare solo torch
+
             # Normalizzazione per canale
             spec_mean = spec.mean()
             spec_std = spec.std()
@@ -276,10 +280,15 @@ class AudioDS(Dataset):
 
     def _load_metadata(self):
         metadata_file_path = self._data_path / self.metadata_filename
+        
+        
         df = pd.read_csv(metadata_file_path)
+
         df = df[
             df['fold'].isin(self._folds) & 
             (df['partition_id'] == self.partition_id)
         ]
+
+        
 
         return df

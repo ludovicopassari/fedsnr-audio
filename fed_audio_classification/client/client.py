@@ -16,37 +16,56 @@ import logging
 import os
 
 
-import logging
+import random
+from logger_config import get_logger
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+
+def set_all_seeds(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+
+logger = get_logger(__name__)
+
 
 class FlowerClient(NumPyClient):
-    def __init__(self, partition_id, net, trainloader, valloader,mean_snr,config, device):
+    def __init__(self, partition_id, net, trainloader,mean_snr,config, device):
+        set_all_seeds(seed=42 + partition_id)
 
         #model settings
         self._net = net
         self._epoch = config['epochs'] if "epochs" in config else 30
-        self.batch_size = config['batchSize'] if 'batchSize' in config else 32
+        self.batch_size = config['batch_size'] if 'batch_size' in config else 32
         self.learning_rate = config['learning_rate'] if 'learning_rate' in config else 0.001
         self.weight_decay = config['weight_decay'] if 'weight_decay' in config else 1e-4
         self._device = device
+        self.criterion= None
+        self.optimizer = None
 
         #data partition setting
         self.partition_id = partition_id
         self._trainloader = trainloader
-        self._validation_loader = valloader
+        
 
         #aggregation
         self.mean_snr = float(mean_snr)
         
     def get_parameters(self, config):
-
         return get_parameters(self._net)
 
     def fit(self, parameters, config):
         set_parameters(self._net, parameters)
+        
+        if "lr" in config:
+            self.learning_rate = config["lr"]
+    
         self.train()
 
         metrics = {
@@ -56,11 +75,11 @@ class FlowerClient(NumPyClient):
 
         return get_parameters(self._net), len(self._trainloader), metrics
 
-    def evaluate(self, parameters, config):
+    """ def evaluate(self, parameters, config):
         set_parameters(self._net, parameters)
         criterion = nn.CrossEntropyLoss()
         val_acc, val_loss, val_precision, val_recall, val_f1 = self.validate_epoch(criterion=criterion)
-        return float(val_loss), len(self._validation_loader), {"accuracy": float(val_acc)}
+        return float(val_loss), len(self._validation_loader), {"accuracy": float(val_acc)} """
     
     def calculate_metrics(self, predictions, true_labels):
         """Calculate precision, recall, and F1 score"""
@@ -99,7 +118,6 @@ class FlowerClient(NumPyClient):
         
         return val_acc, avg_val_loss, val_precision, val_recall, val_f1
         
-
     def train_epoch(self,criterion, optimizer):
         self._net.train()
         train_loss = 0.0
@@ -117,7 +135,7 @@ class FlowerClient(NumPyClient):
             loss.backward()
             
             # Gradient clipping to prevent exploding gradients
-            torch.nn.utils.clip_grad_norm_(self._net.parameters(), max_norm=1.0)
+            #torch.nn.utils.clip_grad_norm_(self._net.parameters(), max_norm=1.0)
             
             optimizer.step()
             
@@ -136,11 +154,15 @@ class FlowerClient(NumPyClient):
         return train_acc, avg_train_loss, train_precision, train_recall, train_f1
     
     def train(self):
+
         self._net.to(self._device)
-        
+
+        logger.info(f"Client {self.partition_id} using lr={self.learning_rate}")
+
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(self._net.parameters(), lr= self.learning_rate, weight_decay=self.weight_decay)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
+
+        #scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
         
         metrics_tracker = MetricsTracker()
         best_val_acc = 0.0
@@ -152,49 +174,21 @@ class FlowerClient(NumPyClient):
         for epoch in range(self._epoch):
             
             train_metrics = self.train_epoch(criterion, optimizer)
-            val_metrics = self.validate_epoch(criterion=criterion)
+            #val_metrics = self.validate_epoch(criterion=criterion)
             
-            metrics_tracker.update(train_metrics, val_metrics)
+            """ metrics_tracker.update(train_metrics, val_metrics)
             
-            # Scheduler step
-            old_lr = optimizer.param_groups[0]['lr']
-            scheduler.step(val_metrics[1])  # Use validation loss
-            new_lr = optimizer.param_groups[0]['lr']
-            
-            # Log learning rate changes
-            """ if old_lr != new_lr:
-                logger.info(f'Learning rate reduced from {old_lr:.6f} to {new_lr:.6f}') """
-            
-            # Logging
             train_acc, train_loss, train_precision, train_recall, train_f1 = train_metrics
             val_acc, val_loss, val_precision, val_recall, val_f1 = val_metrics
-            
-            """ logger.info(f'Epoch [{epoch+1}/{self._epoch}]')
-            logger.info(f'Train - Loss: {train_loss:.4f}, Acc: {train_acc:.2f}%, '
-                    f'Prec: {train_precision:.4f}, Rec: {train_recall:.4f}, F1: {train_f1:.4f}')
-            logger.info(f'Val - Loss: {val_loss:.4f}, Acc: {val_acc:.2f}%, '
-                    f'Prec: {val_precision:.4f}, Rec: {val_recall:.4f}, F1: {val_f1:.4f}')
-            logger.info('-' * 80) """
-            
-            # Save best model and early stopping
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
-                patience_counter = 0
-                """ torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': self._net.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'best_val_acc': best_val_acc,
-                    'train_acc': train_acc
-                }, 'best_audio_classifier.pth')
-                logger.info(f"New best model saved with validation accuracy: {best_val_acc:.2f}%") """
-            else:
-                patience_counter += 1
-                
-            if patience_counter >= early_stop_patience:
-                logger.info(f"Early stopping at epoch {epoch+1}")
-                break
-        
+
+            logger.info(
+                f"[Client {self.partition_id}] [{epoch +1}/{self._epoch}]"
+                f"Train -> Acc: {train_acc:.4f}, Loss: {train_loss:.4f}, Precision: {train_precision:.4f}, "
+                f"Recall: {train_recall:.4f}, F1: {train_f1:.4f} | "
+                f"Val -> Acc: {val_acc:.4f}, Loss: {val_loss:.4f}, Precision: {val_precision:.4f}, "
+                f"Recall: {val_recall:.4f}, F1: {val_f1:.4f}"
+            ) """
+                        
         return 
 
     
