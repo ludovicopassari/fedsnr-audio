@@ -129,10 +129,6 @@ class FlowerClient(NumPyClient):
         for batch_idx, (data, targets) in enumerate(self._trainloader):
             data, targets = data.to(self._device, non_blocking=True), targets.to(self._device, non_blocking=True)
             
-            spec_mean = data.mean()
-            spec_std = data.std()
-            data = (data - spec_mean) / (spec_std + 1e-8)
-
             optimizer.zero_grad()
             outputs = self._net(data)
             loss = criterion(outputs, targets)
@@ -225,5 +221,4 @@ class MetricsTracker:
         self.val_precision_history.append(val_precision)
         self.val_recall_history.append(val_recall)
         self.val_f1_history.append(val_f1)
-
 

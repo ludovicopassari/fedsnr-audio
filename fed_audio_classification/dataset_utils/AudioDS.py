@@ -88,10 +88,10 @@ class AudioDS(Dataset):
             """ power_to_db = torchaudio.transforms.AmplitudeToDB()    
             spec= power_to_db(raw_spectrogram) """
 
-            if self.validation:
-                spec_mean = spec.mean()
-                spec_std = spec.std()
-                spec = (spec - spec_mean) / (spec_std + 1e-8)
+            
+            spec_mean = spec.mean()
+            spec_std = spec.std()
+            spec = (spec - spec_mean) / (spec_std + 1e-8)
             
             spectrograms.append(torch.tensor(spec, dtype=torch.float32))
         

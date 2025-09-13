@@ -118,21 +118,18 @@ def get_test_dataloader():
                 )
 
 
-def on_fit_config(server_round: int) -> Metrics:
-    lr = 0.001 if server_round > 2 else 0.0005
+def on_fit_config(server_round: int) -> dict:
+    """FIX: Learning rate che DECRESCE nel tempo"""
+    initial_lr = 0.001
+    decay_factor = 0.95
+    min_lr = 0.0001
+    
+    # Learning rate che decresce esponenzialmente
+    lr = max(initial_lr * (decay_factor ** (server_round - 1)), min_lr)
+    
+    logger.info(f"Round {server_round}: Using learning rate {lr:.6f}")
     return {"lr": lr}
 
-""" def on_fit_config(server_round: int) -> dict:
-    max_lr = 0.01
-    warmup_rounds = 3
-    decay_rate = 0.95
-    
-    if server_round < warmup_rounds:
-        lr = max_lr * (server_round + 1) / warmup_rounds
-    else:
-        lr = max_lr * (decay_rate ** (server_round - warmup_rounds))
-    
-    return {"lr": lr} """
 
 def aggregate_fit_metrics(metrics):
     # metrics è una lista di tuple: (num_examples, metrics_dict)
