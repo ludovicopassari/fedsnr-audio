@@ -55,7 +55,7 @@ class FlowerClient(NumPyClient):
         
 
         #aggregation
-        self.mean_snr = float(mean_snr)
+        self.mean_snr = mean_snr
         
     def get_parameters(self, config):
         return get_parameters(self._net)
@@ -129,6 +129,10 @@ class FlowerClient(NumPyClient):
         for batch_idx, (data, targets) in enumerate(self._trainloader):
             data, targets = data.to(self._device, non_blocking=True), targets.to(self._device, non_blocking=True)
             
+            spec_mean = data.mean()
+            spec_std = data.std()
+            data = (data - spec_mean) / (spec_std + 1e-8)
+
             optimizer.zero_grad()
             outputs = self._net(data)
             loss = criterion(outputs, targets)

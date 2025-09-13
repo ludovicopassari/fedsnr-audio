@@ -10,7 +10,7 @@ import numpy as np
 #moduli custom
 from device_utils import DEVICE
 from config import *
-from snr_utils.snr_processing import calculate_dataset_snr_cnr
+from snr_utils.snr_processing import calculate_dataset_snr
 from logger_config import get_logger
 
 from dataset_utils.AudioDS import AudioDS
@@ -59,23 +59,12 @@ def load_datasets(partition_id):
             training=True,
             partition_id=partition_id,
             metadata_filename= partitioning_metadata_file,
-            aug=True,
-            num_aug=3,
-            aug_prob= 0.3
+            aug=False,
+            spec_aug=True,
+            validation=False
         )
 
-        """ validation_data = AudioDS(
-            data_path=FED_DATASET_DIR, 
-            folds=client_config['client_validation_folds'], 
-            sample_rate=client_config['sample_rate'], 
-            partition_id=partition_id,
-            metadata_filename= partitioning_metadata_file,
-            training=False,
-            aug=False
-        )
-         """
         logger.info(f"[CLIENT ID : {partition_id}] trains on {len(training_data)} samples")
-        #logger.info(f"[CLIENT ID : {partition_id}] validates on {len(validation_data)} samples")
         
         train_dataloader = DataLoader(
                     training_data, 
@@ -83,14 +72,7 @@ def load_datasets(partition_id):
                     shuffle=True,
                     drop_last=True,
                 )
-        
-        """ validation_dataloader = DataLoader(
-                        validation_data, 
-                        batch_size=client_config['batch_size'], 
-                        shuffle=False,
-                        drop_last=True
-                ) """
-        return  train_dataloader #, validation_dataloader
+        return  train_dataloader
                 
     except Exception as e:
         logger.error(f"Error creating datasets: {e}")
@@ -100,14 +82,15 @@ def load_datasets(partition_id):
 def client_fn(context: Context):
     partition_id = context.node_config["partition-id"]
 
-    net = create_model_with_fixed_seed(seed=42 + partition_id).to(DEVICE)
+    net = create_model_with_fixed_seed(seed=42).to(DEVICE)
 
     torch.manual_seed(42)
 
     train_loader = load_datasets(partition_id=partition_id)
     
     set_all_seeds(42)
-    mri_parameters = calculate_dataset_snr_cnr(train_loader)
+    logger.info(f"Client {partition_id} start calculating SNR...")
+    mri_parameters = calculate_dataset_snr(train_loader, client_id= partition_id)
 
     return FlowerClient(
         partition_id=partition_id, 

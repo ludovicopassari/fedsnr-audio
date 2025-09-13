@@ -23,6 +23,7 @@ from logger_config import get_logger
 import csv
 import os
 
+from fed_audio_classification.snr_utils.snr_processing import calculate_dataset_snr
 
 logger = get_logger(__name__)
 
@@ -106,7 +107,8 @@ def get_test_dataloader():
             partition_id= -1,
             metadata_filename=partitioning_metadata_file,
             training=False,
-            aug=False
+            aug=False,
+            validation=True
         )
     
     return DataLoader(
@@ -155,7 +157,8 @@ def server_fn(context: Context) -> ServerAppComponents:
     
     #dataloader relativo ai dati di test del modello globale
     test_dataloader = get_test_dataloader()
-
+    
+    
     config = ServerConfig(num_rounds=fl_config['num_rounds'])
 
     # Create FedAvg strategy 
@@ -172,22 +175,26 @@ def server_fn(context: Context) -> ServerAppComponents:
 
     #Create FedAvg strategy with initial parameters
     strategySNR = FedSNR(
-        fraction_fit=fl_config["fraction_fit"],
-        fraction_evaluate=fl_config['fraction_evaluate'],
-        min_available_clients=fl_config["fitClients"],
+        fraction_fit= fl_config['fraction_fit'],
+        fraction_evaluate=fl_config['fraction_evaluate'],  
+        min_fit_clients=fl_config['min_fit_clients'],
+        min_evaluate_clients=fl_config['min_evaluate_clients'],
+        min_available_clients=fl_config['min_available_clients'],
         on_fit_config_fn=on_fit_config,
         initial_parameters=initial_parameters,
         evaluate_fn=get_evaluate_fn(test_dataloader, device=DEVICE),
     )
 
-    if fl_config["strategy"] == "FedAvg":
+    sel_strategie = fl_config["strategy"]
+    if sel_strategie == "FedAvg":
         strategy = strategyAVG
-    elif fl_config["strategy"] == "FedSNR":
+    elif sel_strategie == "FedSNR":
         strategy = strategySNR
     else:
         raise ValueError(f"Invalid strategy: {fl_config['strategy']}")
-
-    return ServerAppComponents(strategy=strategyAVG, config=config)
+    
+    logger.info(f"SERVER -> strategie used {sel_strategie} ")
+    return ServerAppComponents(strategy=strategy, config=config)
 
 # Crea la ServerApp
 app = ServerApp(server_fn=server_fn)

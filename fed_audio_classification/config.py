@@ -22,7 +22,7 @@ FLOWER_CONFIG_FILE = BASE_DIR / "fed_audio_classification" / "fl_config.json"
 
 # Result file
 RESULTS_CSV_FILE = FED_DATASET_DIR / "global_model_results.csv"
-
+SNR_CACHE_DIR = FED_DATASET_DIR / "cache" 
 
 def open_config_files():
     client_config = None

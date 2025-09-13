@@ -11,7 +11,7 @@ from logger_config import get_logger
 logger = get_logger(__name__)
 
 class AudioDS(Dataset):
-    def __init__(self, data_path, folds, sample_rate,  partition_id, metadata_filename , max_duration=4,training=False, aug=True, num_aug=1, aug_prob = 0.1):
+    def __init__(self, data_path, folds, sample_rate,  partition_id, metadata_filename , max_duration=4,training=False,validation=False, spec_aug=False, aug=True, num_aug=1, aug_prob = 0.1):
         self._data_path = Path(data_path)
         self._folds = folds
         self.partition_id = partition_id
@@ -19,9 +19,11 @@ class AudioDS(Dataset):
         self._sample_rate = sample_rate
         self._max_duration = max_duration
         self._train = training
+        self.validation = validation
         self._target_len = sample_rate * max_duration
         self._metadata = self._load_metadata()
-        self._augmentation = aug
+        self._augmentation = aug,
+        self.spec_aug = spec_aug,
         self._max_augmentation= num_aug
         self.augumentation_prob = aug_prob
 
@@ -51,7 +53,6 @@ class AudioDS(Dataset):
         self.freq_masking = torchaudio.transforms.FrequencyMasking(freq_mask_param=int(0.15 * n_mels))
 
 
-
     def __len__(self):
         return len(self._metadata)
     
@@ -66,7 +67,6 @@ class AudioDS(Dataset):
         raw_waveform, raw_sample_rate = self._load_sample(audio_full_path)
         waveform = raw_waveform
         
-
         #ricampiona il segnale audio ad un sample rate target
         if raw_sample_rate != self._sample_rate:
             waveform = self._resample_waveform(waveform=raw_waveform, orig_freq=raw_sample_rate, new_freq= self._sample_rate)
@@ -85,13 +85,13 @@ class AudioDS(Dataset):
             channel_waveform = waveform[channel:channel+1]  # Mantieni la dimensione batch
             raw_spectrogram = self.mel_transform(channel_waveform)
             spec = librosa.power_to_db(raw_spectrogram.squeeze().numpy())
+            """ power_to_db = torchaudio.transforms.AmplitudeToDB()    
+            spec= power_to_db(raw_spectrogram) """
 
-            #spec = 10.0 * torch.log10(raw_spectrogram + 1e-10)  # evita .numpy() #per utilizzare solo torch
-
-            # Normalizzazione per canale
-            spec_mean = spec.mean()
-            spec_std = spec.std()
-            spec = (spec - spec_mean) / (spec_std + 1e-8)
+            if self.validation:
+                spec_mean = spec.mean()
+                spec_std = spec.std()
+                spec = (spec - spec_mean) / (spec_std + 1e-8)
             
             spectrograms.append(torch.tensor(spec, dtype=torch.float32))
         
@@ -100,7 +100,7 @@ class AudioDS(Dataset):
         spec = torch.nan_to_num(spec, nan=0.0, posinf=1.0, neginf=0.0)
 
         #applica augmentation allo spettrogramma per ogni canale
-        if self._augmentation and self._train and torch.rand(1).item() < 0.4:
+        if self.spec_aug and self._train and torch.rand(1).item() < 0.4:
             spec = self.freq_masking(spec)
             spec = self.time_masking(spec)
             
@@ -177,26 +177,6 @@ class AudioDS(Dataset):
         
         return torch.stack(shifted_channels)
     
-
-    """ def random_shift(self, waveform, max_shift):
-        
-        shift = torch.randint(-max_shift, max_shift + 1, (1,)).item()
-        if shift == 0:
-            return waveform  # niente shift
-        
-        channels, samples = waveform.shape
-
-        if shift > 0:
-            # shift a destra
-            pad = torch.zeros((channels, shift), device=waveform.device)
-            waveform = torch.cat([pad, waveform[:, :-shift]], dim=1)
-        else:  # shift < 0
-            # shift a sinistra
-            pad = torch.zeros((channels, -shift), device=waveform.device)
-            waveform = torch.cat([waveform[:, -shift:], pad], dim=1)
-        
-        return waveform """
-    
     def random_shift(self, waveform, max_shift):
             """Applica uno shift temporale casuale al waveform stereo con padding circolare."""
             shift = torch.randint(-max_shift, max_shift + 1, (1,)).item()
@@ -232,7 +212,6 @@ class AudioDS(Dataset):
             noisy_channels.append(noisy_channel.squeeze(0))
         
         return torch.stack(noisy_channels)
-
 
     def _load_sample(self, path):
         samples, sr = torchaudio.load(path) #[channels, samples]

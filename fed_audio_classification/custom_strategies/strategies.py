@@ -53,7 +53,7 @@ class FedSNR(fl.server.strategy.FedAvg):
         
         # Weighted average using SNR scaling factors
         aggregated_ndarrays = [
-            np.zeros_like(layer) for layer in parameters_array[0]
+            np.zeros_like(layer, dtype=np.float64) for layer in parameters_array[0]
         ]
         for client_weights, scale in zip(parameters_array, scale_factors):
             for i, layer in enumerate(client_weights):
