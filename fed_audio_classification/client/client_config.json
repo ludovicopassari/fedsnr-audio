@@ -1,7 +1,7 @@
 {
     "batch_size":16,
-    "epochs": 1,
-    "learning_rate": 0.001,
+    "epochs": 2,
+    "learning_rate": 0.005,
     "weight_decay": 1e-4,
     "num_classes": 10,
     "sample_rate": 22050,

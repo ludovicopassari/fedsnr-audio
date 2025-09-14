@@ -120,7 +120,7 @@ def get_test_dataloader():
 
 def on_fit_config(server_round: int) -> dict:
     """FIX: Learning rate che DECRESCE nel tempo"""
-    initial_lr = 0.001
+    initial_lr = client_config['learning_rate']
     decay_factor = 0.95
     min_lr = 0.0001
     
