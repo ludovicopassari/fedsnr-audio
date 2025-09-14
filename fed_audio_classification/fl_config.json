@@ -6,7 +6,7 @@
     "min_fit_clients": 7,
     "min_evaluate_clients" : 7,
     "min_available_clients": 7,
-    "strategy": "FedSNR", 
-    "distribution": "iid",
+    "strategy": "FedAvg", 
+    "distribution": "dirichlet",
     "strategySeed": 42
 }
