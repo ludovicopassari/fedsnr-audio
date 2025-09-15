@@ -29,7 +29,7 @@ from fed_audio_classification.snr_utils.snr_processing import calculate_dataset_
 
 logger = get_logger(__name__)
 
-def save_metrics_to_csv(round: int, val_loss: float, val_acc: float, filename=RESULTS_CSV_FILE):
+def save_metrics_to_csv(round: int, val_loss: float, val_acc: float, precision, recall, f1_score,filename=RESULTS_CSV_FILE):
     # Controlla se il file esiste già
     file_exists = os.path.isfile(filename)
     
@@ -38,8 +38,8 @@ def save_metrics_to_csv(round: int, val_loss: float, val_acc: float, filename=RE
         writer = csv.writer(f)
         # Scrive l'intestazione se il file non esiste
         if not file_exists:
-            writer.writerow(["round", "val_loss", "accuracy"])
-        writer.writerow([round, val_loss, val_acc])
+            writer.writerow(["round", "val_loss", "accuracy", "precision", "recall", "f1_score"])
+        writer.writerow([round, val_loss, val_acc, precision, recall, f1_score])
 
 def get_initial_parameters():
     """Get initial model parameters with consistent initialization"""
@@ -123,11 +123,19 @@ def get_evaluate_fn(testloader, device):
         model = create_model_with_fixed_seed(seed=42)
         model.to(device)
         set_parameters(model, parameters)
-        val_acc, avg_val_loss = test(model, testloader, device)
-        
-        save_metrics_to_csv(server_round, avg_val_loss, val_acc)
-        
-        return avg_val_loss, {"accuracy": val_acc}
+        #val_acc, avg_val_loss = test(model, testloader, device)
+        res_test = test_with_metrics(model=model,  test_loader=testloader, device=device)
+        save_metrics_to_csv(server_round, res_test['loss'], res_test['accuracy'], res_test['precision'], res_test['recall'], res_test['f1_score'])
+        """
+        {
+        'accuracy': accuracy_percent,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1,
+        'loss': avg_val_loss
+        }
+        """
+        return res_test['loss'], {"accuracy": res_test['accuracy']}
 
     return evaluate
 
