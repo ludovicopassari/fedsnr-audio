@@ -5,6 +5,8 @@ from logger_config import get_logger
 import pickle
 import os
 from config import SNR_CACHE_DIR
+from dataset_utils.AudioDS import AudioDS
+from config import *
 
 logger = get_logger(__name__)
 
@@ -34,23 +36,44 @@ def mel_snr_from_spectrogram(S_db, eps_db=5.0):
     return snr_db
 
 
-def calculate_dataset_snr(dataset, client_id, eps_db=5.0):
+def calculate_dataset_snr(dataset, client_id, is_noisy=False, eps_db=5.0):
     """
     Calcola uno SNR medio scalare per tutto il dataset.
     Restituisce un float scalare rappresentativo.
     """
-    """ SNR_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    SNR_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     cache_file = SNR_CACHE_DIR / f"snr_cache_client_{client_id}.pkl"
 
     # Controlla se esiste la cache su file
     if os.path.exists(cache_file):
         with open(cache_file, "rb") as f:
-            normalized_snr = pickle.load(f)
-        logger.info(f"[Client {client_id}] SNR letto dalla cache: {normalized_snr:.4f}")
-        return normalized_snr """
+            mean_snr = pickle.load(f)
+        logger.info(f"[Client {client_id}] SNR letto dalla cache: {mean_snr:.4f}")
+        return mean_snr
 
-    total_dataset = getattr(dataset, "dataset", dataset)  # compatibile anche se dataset è DataLoader
-    new_dataloader = DataLoader(total_dataset, batch_size=1, shuffle=False)
+
+    distribution_type = fl_config['distribution']        
+
+    if distribution_type == 'iid':
+        partitioning_metadata_file = PARTITIONING_METADATA_IID
+    elif distribution_type == 'dirichlet':
+        partitioning_metadata_file = PARTITIONING_METADATA_DIRICHLET
+
+ 
+    snr_calculation_dataset = AudioDS(
+        data_path=FED_DATASET_DIR, 
+        folds=client_config['client_train_folds'], 
+        sample_rate=client_config["sample_rate"],
+        training=True,
+        partition_id=client_id,
+        metadata_filename= partitioning_metadata_file,
+        aug=False,
+        spec_aug=False,
+        validation=False,
+        is_noisy= is_noisy, 
+        norm_spec = False #perchè questo lo usa per calcolare SNR medio
+    )
+    new_dataloader = DataLoader(snr_calculation_dataset, batch_size=1, shuffle=False)
 
     snr_list = []
 
@@ -73,13 +96,15 @@ def calculate_dataset_snr(dataset, client_id, eps_db=5.0):
     snr_min = snr_all.min().item()
     snr_max = snr_all.max().item()
 
-    normalized_snr = (mean_snr - snr_min) / (snr_max - snr_min)  # tra 0 e 1
+    #normalized_snr = (mean_snr - snr_min) / (snr_max - snr_min)  # tra 0 e 1
+    #normalized_snr = 1.0 - ((mean_snr - snr_min) / (snr_max - snr_min))
     #normalized_snr = max(0.0, min(1.0, normalized_snr))  
 
     # Salva in cache su file
-    """ with open(cache_file, "wb") as f:
-        pickle.dump(normalized_snr, f) """
+    with open(cache_file, "wb") as f:
+        pickle.dump(mean_snr, f)
 
-    logger.info(f"[Client {client_id}] SNR normalizzato calcolato")
+    logger.info(f"[Client {client_id}] SNR  calcolato e salvato in cache")
+    logger.info(f"[Client {client_id}] SNR non norm. {mean_snr}")
 
-    return normalized_snr
+    return mean_snr

@@ -42,7 +42,7 @@ class FedSNR(fl.server.strategy.FedAvg):
     
     def aggregate_inplace(self, results: list[tuple[ClientProxy, FitRes]]) -> NDArrays:
         # Extract SNR values (ensure metric name matches what clients report)
-        snr_values = [fit_res.metrics["mean_snr"] for _, fit_res in results]
+        snr_values = [fit_res.metrics["mean_snr"] for _, fit_res in results] # che per ora sono quelli medi
         total_snr = sum(snr_values)
         
         # Compute scaling factors based purely on SNR

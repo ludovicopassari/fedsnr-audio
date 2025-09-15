@@ -42,7 +42,7 @@ def set_all_seeds(seed: int = 42):
     # Set Python hash seed
     os.environ['PYTHONHASHSEED'] = str(seed)
 
-def load_datasets(partition_id):
+def load_datasets(partition_id, is_noisy=False):
 
     distribution_type = fl_config['distribution']        
 
@@ -55,13 +55,15 @@ def load_datasets(partition_id):
         training_data = AudioDS(
             data_path=FED_DATASET_DIR, 
             folds=client_config['client_train_folds'], 
-            sample_rate=22050,
+            sample_rate=client_config["sample_rate"],
             training=True,
             partition_id=partition_id,
             metadata_filename= partitioning_metadata_file,
             aug=False,
             spec_aug=True,
-            validation=False
+            validation=False,
+            is_noisy=is_noisy,
+            norm_spec=True #perchè lo usa per il training
         )
 
         logger.info(f"[CLIENT ID : {partition_id}] trains on {len(training_data)} samples")
@@ -82,15 +84,21 @@ def load_datasets(partition_id):
 def client_fn(context: Context):
     partition_id = context.node_config["partition-id"]
 
+    #determina se è selezionato per generare rumore nei campioni
+    is_noisy = partition_id in fl_config['noisy_clients']
+    if is_noisy:
+        logger.info(f"Client {partition_id} is noisy")
+
     net = create_model_with_fixed_seed(seed=42).to(DEVICE)
 
     torch.manual_seed(42)
 
-    train_loader = load_datasets(partition_id=partition_id)
+    #dataset esclusivamente per il training
+    train_loader = load_datasets(partition_id=partition_id, is_noisy=is_noisy)
     
     set_all_seeds(42)
-    logger.info(f"Client {partition_id} start calculating SNR...")
-    mri_parameters = calculate_dataset_snr(train_loader, client_id= partition_id)
+    mri_parameters = calculate_dataset_snr(train_loader, client_id= partition_id, is_noisy=is_noisy)
+    logger.info(f"Client {partition_id} -- SNR  {mri_parameters}")
 
     return FlowerClient(
         partition_id=partition_id, 

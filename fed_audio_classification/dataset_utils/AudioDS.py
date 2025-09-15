@@ -7,11 +7,27 @@ import librosa
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from logger_config import get_logger
+from config import fl_config
 
 logger = get_logger(__name__)
 
 class AudioDS(Dataset):
-    def __init__(self, data_path, folds, sample_rate,  partition_id, metadata_filename , max_duration=4,training=False,validation=False, spec_aug=False, aug=True, num_aug=1, aug_prob = 0.1):
+    def __init__(self, 
+                 data_path, 
+                 folds, 
+                 sample_rate,  
+                 partition_id, 
+                 metadata_filename , 
+                 max_duration=4,
+                 training=False,
+                 validation=False, 
+                 spec_aug=False, 
+                 aug=True, 
+                 num_aug=1, 
+                 aug_prob = 0.1,
+                 is_noisy = False,
+                norm_spec = True ):
+        
         self._data_path = Path(data_path)
         self._folds = folds
         self.partition_id = partition_id
@@ -26,6 +42,8 @@ class AudioDS(Dataset):
         self.spec_aug = spec_aug,
         self._max_augmentation= num_aug
         self.augumentation_prob = aug_prob
+        self.is_noisy = is_noisy
+        self.normalize_spec = norm_spec
 
         #Feature extraction utilizzando spettrogrammi Mel
         n_fft = 2048
@@ -48,7 +66,7 @@ class AudioDS(Dataset):
             f_min=0
             
         )
-        #Augmentation spettrogramma Mel
+
         self.time_masking = torchaudio.transforms.TimeMasking(time_mask_param=6)
         self.freq_masking = torchaudio.transforms.FrequencyMasking(freq_mask_param=int(0.15 * n_mels))
 
@@ -77,6 +95,10 @@ class AudioDS(Dataset):
         if self._train and self._augmentation and torch.rand(1).item() < 0.4:
             waveform = self._apply_balanced_augmentations(waveform=waveform)
  
+        if self.is_noisy:
+            #logger.info(f"Client {self.partition_id} è noisy con SNR {fl_config['desire_snr_db']}")
+            waveform = self._add_noise_gaussian(waveform, snr_db=fl_config['desire_snr_db'])
+
 
         waveform = self._normalize_with_soft_clipping(waveform=waveform)
 
@@ -88,10 +110,10 @@ class AudioDS(Dataset):
             """ power_to_db = torchaudio.transforms.AmplitudeToDB()    
             spec= power_to_db(raw_spectrogram) """
 
-            
-            spec_mean = spec.mean()
-            spec_std = spec.std()
-            spec = (spec - spec_mean) / (spec_std + 1e-8)
+            if self.normalize_spec:
+                spec_mean = spec.mean()
+                spec_std = spec.std()
+                spec = (spec - spec_mean) / (spec_std + 1e-8)
             
             spectrograms.append(torch.tensor(spec, dtype=torch.float32))
         

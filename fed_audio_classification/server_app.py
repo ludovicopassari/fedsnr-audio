@@ -13,6 +13,8 @@ from flwr.server.strategy import FedAvg
 from flwr.simulation import run_simulation
 
 from models.models import get_parameters, set_parameters, create_model_with_fixed_seed
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+
 from device_utils import DEVICE
 from dataset_utils.AudioDS import AudioDS
 from custom_strategies.strategies import FedSNR
@@ -46,6 +48,45 @@ def get_initial_parameters():
     parameters = get_parameters(model)
 
     return parameters
+
+def test_with_metrics(model, test_loader, device):
+    model.eval()
+    val_loss = 0.0
+    val_predictions = []
+    val_true_labels = []
+    
+    criterion = nn.CrossEntropyLoss()
+    
+    with torch.no_grad():
+        for data, targets in test_loader:
+            data, targets = data.to(device, non_blocking=True), targets.to(device, non_blocking=True)
+            outputs = model(data)
+            loss = criterion(outputs, targets)
+            
+            val_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            
+            val_predictions.extend(predicted.cpu().numpy())
+            val_true_labels.extend(targets.cpu().numpy())
+    
+    # Calcolo delle metriche usando sklearn
+    accuracy = accuracy_score(val_true_labels, val_predictions)
+    precision = precision_score(val_true_labels, val_predictions, average='weighted', zero_division=0)
+    recall = recall_score(val_true_labels, val_predictions, average='weighted', zero_division=0)
+    f1 = f1_score(val_true_labels, val_predictions, average='weighted', zero_division=0)
+    avg_val_loss = val_loss / len(test_loader)
+    
+    # Convertire accuracy in percentuale per compatibilità
+    accuracy_percent = accuracy * 100
+    
+    return {
+        'accuracy': accuracy_percent,
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1,
+        'loss': avg_val_loss
+    }
+
 
 def test(model, test_loader, device):
         model.eval()
