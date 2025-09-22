@@ -17,7 +17,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 
 from device_utils import DEVICE
 from dataset_utils.AudioDS import AudioDS
-from custom_strategies.strategies import FedSNR
+from custom_strategies.strategies import FedSNR, FedSNRCS
 
 from config import *
 from logger_config import get_logger
@@ -219,8 +219,19 @@ def server_fn(context: Context) -> ServerAppComponents:
         on_fit_config_fn=on_fit_config,
     )
 
-    #Create FedAvg strategy with initial parameters
+    
     strategySNR = FedSNR(
+        fraction_fit= fl_config['fraction_fit'],
+        fraction_evaluate=fl_config['fraction_evaluate'],  
+        min_fit_clients=fl_config['min_fit_clients'],
+        min_evaluate_clients=fl_config['min_evaluate_clients'],
+        min_available_clients=fl_config['min_available_clients'],
+        on_fit_config_fn=on_fit_config,
+        initial_parameters=initial_parameters,
+        evaluate_fn=get_evaluate_fn(test_dataloader, device=DEVICE),
+    )
+
+    strategySNRCS = FedSNRCS(
         fraction_fit= fl_config['fraction_fit'],
         fraction_evaluate=fl_config['fraction_evaluate'],  
         min_fit_clients=fl_config['min_fit_clients'],
@@ -236,6 +247,8 @@ def server_fn(context: Context) -> ServerAppComponents:
         strategy = strategyAVG
     elif sel_strategie == "FedSNR":
         strategy = strategySNR
+    elif sel_strategie == "FedSNRCS":
+        strategy = strategySNRCS
     else:
         raise ValueError(f"Invalid strategy: {fl_config['strategy']}")
     
