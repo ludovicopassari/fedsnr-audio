@@ -6,9 +6,9 @@
     "min_fit_clients": 14,
     "min_evaluate_clients" : 14,
     "min_available_clients": 20,
-    "strategy": "FedSNR", 
+    "strategy": "FedAvg", 
     "distribution": "iid",
     "strategySeed": 42,
-    "noisy_clients" : [],
+    "noisy_clients" : [6, 0, 18, 11],
     "desire_snr_db" : 5
 }

@@ -225,18 +225,18 @@ class TorchModel(nn.Module):
     
     def forward(self, x):
         
-        # Input: (batch_size, 1, n_mels, time_steps)
-        x = self.conv1(x)    # (batch_size, 32, n_mels/2, time_steps/2)
-        x = self.conv2(x)    # (batch_size, 64, n_mels/4, time_steps/4)
-        x = self.conv3(x)    # (batch_size, 128, n_mels/8, time_steps/8)
-        x = self.conv4(x)    # (batch_size, 256, n_mels/16, time_steps/16)
+     
+        x = self.conv1(x)   
+        x = self.conv2(x)   
+        x = self.conv3(x)    
+        x = self.conv4(x)    
         
         # Global Average Pooling
-        x = self.global_avg_pool(x)  # (batch_size, 256, 1, 1)
-        x = x.view(x.size(0), -1)    # (batch_size, 256)
+        x = self.global_avg_pool(x) 
+        x = x.view(x.size(0), -1) 
         
         # Classification
-        x = self.classifier(x)       # (batch_size, n_classes)
+        x = self.classifier(x)       
         return x
 
 
