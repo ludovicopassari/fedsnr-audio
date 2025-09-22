@@ -21,7 +21,7 @@ CLIENT_CONFIG_FILE = BASE_DIR / "fed_audio_classification" / "client" / "client_
 FLOWER_CONFIG_FILE = BASE_DIR / "fed_audio_classification" / "fl_config.json"
 
 # Result file
-RESULTS_CSV_FILE = FED_DATASET_DIR / "global_model_results.csv"
+RESULTS_CSV_FILE = FED_DATASET_DIR 
 SNR_CACHE_DIR = FED_DATASET_DIR / "cache" 
 
 def open_config_files():

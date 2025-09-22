@@ -30,7 +30,10 @@ from fed_audio_classification.snr_utils.snr_processing import calculate_dataset_
 logger = get_logger(__name__)
 
 def save_metrics_to_csv(round: int, val_loss: float, val_acc: float, precision, recall, f1_score,filename=RESULTS_CSV_FILE):
-    # Controlla se il file esiste già
+    
+    percentages = len(fl_config['noisyClients']) / fl_config['fitClients']
+    filename = filename / f"{fl_config['strategy']}-C{fl_config['fraction_fit']}-clients{fl_config['fitClients']}-dist-{fl_config['distribution']}-perc-{percentages}.csv"
+    
     file_exists = os.path.isfile(filename)
     
     # Scrive i dati nel CSV

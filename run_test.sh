@@ -1,3 +1,10 @@
+# Setta PYTHONPATH se non già settato
+if [ -z "$PYTHONPATH" ]; then
+    echo "Imposto PYTHONPATH..."
+    export PYTHONPATH="$(pwd)/fed_audio_classification:$PYTHONPATH"
+fi
+
+
 for fitFraction in 0.1 0.3 0.5 0.7; do
     for strategy in FedAvg FedSNR FedSNRCS ; do
         for distribution in iid dirichlet; do
