@@ -96,7 +96,9 @@ def client_fn(context: Context):
     #dataset esclusivamente per il training
     train_loader = load_datasets(partition_id=partition_id, is_noisy=is_noisy)
     
+    mri_parameters = None
     set_all_seeds(42)
+    
     mri_parameters = calculate_dataset_snr(train_loader, client_id= partition_id, is_noisy=is_noisy)
     logger.info(f"Client {partition_id} -- SNR  {mri_parameters}")
 
@@ -104,7 +106,6 @@ def client_fn(context: Context):
         partition_id=partition_id, 
         net=net, 
         trainloader=train_loader, 
-        #valloader=validation_loader, 
         config=client_config,
         mean_snr= mri_parameters,
         device= DEVICE

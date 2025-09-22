@@ -1,14 +1,12 @@
 {
     "num_rounds": 30,
     "fitClients": 20,
-    "fraction_fit": 0.7,
-    "fraction_evaluate": 0.7,
+    "fraction_fit": 0.1,
     "min_fit_clients": 14,
-    "min_evaluate_clients" : 14,
-    "min_available_clients": 20,
-    "strategy": "FedSNRCS", 
-    "distribution": "dirichlet",
+    "min_evaluate_clients": 14,
+    "strategy": "FedAvg",
+    "distribution": "iid",
     "strategySeed": 42,
-    "noisy_clients" : [],
-    "desire_snr_db" : 5
+    "noisy_clients": [],
+    "desire_snr_db": 5
 }

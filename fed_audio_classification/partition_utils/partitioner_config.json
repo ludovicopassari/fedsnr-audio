@@ -1,6 +1,6 @@
 {
     "num_partition" : 20,
-    "partition_type" : "dirichlet",
+    "partition_type" : "iid",
     "training_folds" : [1,2,3,4,5,6,7,8,9],
     "start_partition_count" : 0
 }

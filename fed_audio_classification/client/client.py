@@ -52,16 +52,22 @@ class FlowerClient(NumPyClient):
         #data partition setting
         self.partition_id = partition_id
         self._trainloader = trainloader
+        self._validation_loader = None  # Added for consistency
         
 
         #aggregation
         self.mean_snr = mean_snr
+        
+        # Move model to device immediately
+        self._net.to(self._device)
         
     def get_parameters(self, config):
         return get_parameters(self._net)
 
     def fit(self, parameters, config):
         set_parameters(self._net, parameters)
+        # Ensure model is on correct device after parameter update
+        self._net.to(self._device)
         
         if "lr" in config:
             self.learning_rate = config["lr"]
@@ -75,11 +81,13 @@ class FlowerClient(NumPyClient):
 
         return get_parameters(self._net), len(self._trainloader), metrics
 
-    """ def evaluate(self, parameters, config):
+    def evaluate(self, parameters, config):
         set_parameters(self._net, parameters)
+        # Ensure model is on correct device after parameter update
+        self._net.to(self._device)
         criterion = nn.CrossEntropyLoss()
         val_acc, val_loss, val_precision, val_recall, val_f1 = self.validate_epoch(criterion=criterion)
-        return float(val_loss), len(self._validation_loader), {"accuracy": float(val_acc)} """
+        return float(val_loss), len(self._validation_loader), {"accuracy": float(val_acc)}
     
     def calculate_metrics(self, predictions, true_labels):
         """Calculate precision, recall, and F1 score"""
@@ -96,11 +104,15 @@ class FlowerClient(NumPyClient):
         val_predictions = []
         val_true_labels = []
         
+        # Check if validation loader exists
+        if self._validation_loader is None:
+            logger.warning("Validation loader not set, skipping validation")
+            return 0.0, 0.0, 0.0, 0.0, 0.0
+        
         with torch.no_grad():
             for data, targets in self._validation_loader:
                 data, targets = data.to(self._device, non_blocking=True), targets.to(self._device, non_blocking=True)
                 outputs = self._net(data)
-                criterion = nn.CrossEntropyLoss()
                 loss = criterion(outputs, targets)
 
                 
@@ -155,9 +167,7 @@ class FlowerClient(NumPyClient):
     
     def train(self):
 
-        self._net.to(self._device)
-
-        logger.info(f"Client {self.partition_id} using lr={self.learning_rate}")
+        logger.info(f"Client {self.partition_id} using device: {self._device}, lr={self.learning_rate}")
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(self._net.parameters(), lr= self.learning_rate, weight_decay=self.weight_decay)
@@ -221,4 +231,3 @@ class MetricsTracker:
         self.val_precision_history.append(val_precision)
         self.val_recall_history.append(val_recall)
         self.val_f1_history.append(val_f1)
-

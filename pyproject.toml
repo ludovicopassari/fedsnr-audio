@@ -35,6 +35,7 @@ clientapp = "fed_audio_classification.client_app:app"
 
 # Custom config values accessible via `context.run_config`
 [tool.flwr.app.config]
+backend = "ray"
 num-server-rounds = 3
 fraction-fit = 0.5
 local-epochs = 1
@@ -46,9 +47,15 @@ default = "local-simulation"
 # Local simulation federation with 10 virtual SuperNodes
 [tool.flwr.federations.local-simulation]
 options.num-supernodes = 20
+options.backend.client-resources.num-cpus = 1
+options.backend.client-resources.num-gpus = 0.25
 
 # Remote federation example for use with SuperLink
 [tool.flwr.federations.remote-federation]
 address = "<SUPERLINK-ADDRESS>:<PORT>"
 insecure = true  # Remove this line to enable TLS
 # root-certificates = "<PATH/TO/ca.crt>"  # For TLS setup
+
+[tool.flwr.app.config.ray]
+init_args.num_gpus = 1
+client_resources.num_gpus = 1

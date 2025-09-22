@@ -29,20 +29,19 @@ from fed_audio_classification.snr_utils.snr_processing import calculate_dataset_
 
 logger = get_logger(__name__)
 
-def save_metrics_to_csv(round: int, val_loss: float, val_acc: float, precision, recall, f1_score,filename=RESULTS_CSV_FILE):
-    
-    percentages = len(fl_config['noisyClients']) / fl_config['fitClients']
-    filename = filename / f"{fl_config['strategy']}-C{fl_config['fraction_fit']}-clients{fl_config['fitClients']}-dist-{fl_config['distribution']}-perc-{percentages}.csv"
-    
-    file_exists = os.path.isfile(filename)
-    
+
+percentages = len(fl_config['noisy_clients']) / fl_config['fitClients']
+filename = RESULTS_CSV_FILE / f"{fl_config['strategy']}-C{fl_config['fraction_fit']}-clients{fl_config['fitClients']}-dist-{fl_config['distribution']}-noise-{percentages}.csv"
+
+
+def init_results_file():
+    with open(filename, "w") as f:
+        f.write("round,val_loss,accuracy,precision,recall,f1_score\n")
+
+def save_metrics_to_csv(round: int, val_loss: float, val_acc: float, precision, recall, f1_score):
     # Scrive i dati nel CSV
     with open(filename, mode="a", newline="") as f:
-        writer = csv.writer(f)
-        # Scrive l'intestazione se il file non esiste
-        if not file_exists:
-            writer.writerow(["round", "val_loss", "accuracy", "precision", "recall", "f1_score"])
-        writer.writerow([round, val_loss, val_acc, precision, recall, f1_score])
+        f.write(f"{round}, {val_loss},{val_acc},{precision},{recall},{f1_score}\n")
 
 def get_initial_parameters():
     """Get initial model parameters with consistent initialization"""
@@ -51,7 +50,7 @@ def get_initial_parameters():
     parameters = get_parameters(model)
 
     return parameters
-
+    
 def test_with_metrics(model, test_loader, device):
     model.eval()
     val_loss = 0.0
@@ -129,15 +128,7 @@ def get_evaluate_fn(testloader, device):
         #val_acc, avg_val_loss = test(model, testloader, device)
         res_test = test_with_metrics(model=model,  test_loader=testloader, device=device)
         save_metrics_to_csv(server_round, res_test['loss'], res_test['accuracy'], res_test['precision'], res_test['recall'], res_test['f1_score'])
-        """
-        {
-        'accuracy': accuracy_percent,
-        'precision': precision,
-        'recall': recall,
-        'f1_score': f1,
-        'loss': avg_val_loss
-        }
-        """
+
         return res_test['loss'], {"accuracy": res_test['accuracy']}
 
     return evaluate
@@ -213,10 +204,8 @@ def server_fn(context: Context) -> ServerAppComponents:
     # Create FedAvg strategy 
     strategyAVG = FedAvg(
         fraction_fit= fl_config['fraction_fit'],
-        fraction_evaluate=fl_config['fraction_evaluate'],  
-        min_fit_clients=fl_config['min_fit_clients'],
-        min_evaluate_clients=fl_config['min_evaluate_clients'],
-        min_available_clients=fl_config['min_available_clients'],
+        fraction_evaluate=0,
+        min_available_clients=fl_config['fitClients'],
         initial_parameters=initial_parameters,
         evaluate_fn=get_evaluate_fn(test_dataloader, DEVICE),
         on_fit_config_fn=on_fit_config,
@@ -225,10 +214,8 @@ def server_fn(context: Context) -> ServerAppComponents:
     
     strategySNR = FedSNR(
         fraction_fit= fl_config['fraction_fit'],
-        fraction_evaluate=fl_config['fraction_evaluate'],  
-        min_fit_clients=fl_config['min_fit_clients'],
-        min_evaluate_clients=fl_config['min_evaluate_clients'],
-        min_available_clients=fl_config['min_available_clients'],
+        fraction_evaluate=0,
+        min_available_clients=fl_config['fitClients'],
         on_fit_config_fn=on_fit_config,
         initial_parameters=initial_parameters,
         evaluate_fn=get_evaluate_fn(test_dataloader, device=DEVICE),
@@ -236,10 +223,8 @@ def server_fn(context: Context) -> ServerAppComponents:
 
     strategySNRCS = FedSNRCS(
         fraction_fit= fl_config['fraction_fit'],
-        fraction_evaluate=fl_config['fraction_evaluate'],  
-        min_fit_clients=fl_config['min_fit_clients'],
-        min_evaluate_clients=fl_config['min_evaluate_clients'],
-        min_available_clients=fl_config['min_available_clients'],
+        fraction_evaluate=0,  
+        min_available_clients=fl_config['fitClients'],
         on_fit_config_fn=on_fit_config,
         initial_parameters=initial_parameters,
         evaluate_fn=get_evaluate_fn(test_dataloader, device=DEVICE),
@@ -258,5 +243,6 @@ def server_fn(context: Context) -> ServerAppComponents:
     logger.info(f"SERVER -> strategie used {sel_strategie} ")
     return ServerAppComponents(strategy=strategy, config=config)
 
-# Crea la ServerApp
+
+init_results_file()
 app = ServerApp(server_fn=server_fn)

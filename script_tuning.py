@@ -3,6 +3,10 @@ import sys
 import argparse
 import random
 from fed_audio_classification.config import *
+from config import SNR_CACHE_DIR 
+from logger_config import get_logger
+
+logger = get_logger(__name__)
 
 def modify_json(input_file, output_file, fitFraction, strategy, distribution, percentage_noisy_clients, fit_clients, seed):
     
@@ -15,13 +19,13 @@ def modify_json(input_file, output_file, fitFraction, strategy, distribution, pe
     
     # Randomly select a fraction of clients to be noisy
     
-    data['fitFraction'] = fitFraction
+    data['fraction_fit'] = fitFraction
     data['strategy'] = strategy
     data['distribution'] = distribution
     data['fitClients'] = fit_clients
     
     list_noise_clients = rng.sample(range(0, data['fitClients']), int(data['fitClients'] * percentage_noisy_clients))
-    data['noisyClients'] = list_noise_clients
+    data['noisy_clients'] = list_noise_clients
     
     with open(output_file, 'w') as f:
         json.dump(data, f, indent=4)
@@ -42,4 +46,12 @@ if __name__ == "__main__":
     input_file = args.input
     output_file = args.output
     
+    if SNR_CACHE_DIR.exists():
+        for item in SNR_CACHE_DIR.iterdir():
+            if item.is_file():
+                item.unlink()
+            elif item.is_dir():
+                shutil.rmtree(item)
+        logger.info(f"Contenuto di {SNR_CACHE_DIR} rimosso")
+
     modify_json(input_file, output_file, args.fitFraction, args.strategy, args.distribution, args.percentage_noisy_clients, args.fit_clients, args.seed)
