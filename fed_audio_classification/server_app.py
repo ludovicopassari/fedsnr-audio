@@ -17,7 +17,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 
 from device_utils import DEVICE
 from dataset_utils.AudioDS import AudioDS
-from custom_strategies.strategies import FedSNR, FedSNRCS
+from custom_strategies.strategies import FedSNR, FedSNRSelection
 
 from config import *
 from logger_config import get_logger
@@ -221,14 +221,16 @@ def server_fn(context: Context) -> ServerAppComponents:
         evaluate_fn=get_evaluate_fn(test_dataloader, device=DEVICE),
     )
 
-    strategySNRCS = FedSNRCS(
-        fraction_fit= fl_config['fraction_fit'],
+    
+    strategySNRCS = FedSNRSelection(
+        fraction_best= fl_config['fraction_fit'],
+        fraction_fit= 1.0,
         fraction_evaluate=0,  
         min_available_clients=fl_config['fitClients'],
         on_fit_config_fn=on_fit_config,
         initial_parameters=initial_parameters,
         evaluate_fn=get_evaluate_fn(test_dataloader, device=DEVICE),
-    )
+    )   
 
     sel_strategie = fl_config["strategy"]
     if sel_strategie == "FedAvg":
